@@ -117,9 +117,18 @@ python -m rentrate.profit_pipeline --geo-input g.json --address-input a.json \
 
 Outputs `{ward,community_area,zip}_profit_summary.{json,csv}` + `profit_metadata.json` (which
 echoes the assumptions used). **Frame it honestly as an estimate / teaching tool**, exactly as the
-original organizing activity does — a strong advocacy signal, a low-confidence number. Still to do:
-wire the summaries into Penlight as a metric source (like `chainshare`/`parkability`), and the
-standalone per-building calculator page Sean imagined (the model is ready to back it).
+original organizing activity does — a strong advocacy signal, a low-confidence number.
+
+### Standalone calculator
+
+`calculator/index.html` is the per-building "where does your rent go?" calculator Sean imagined —
+a single self-contained page (no build, no dependencies) whose JS mirrors `profit.py`. Enter rent,
+units, building value, and optionally what the landlord paid; it shows the rent split as a stacked
+bar and, when a purchase price is given, both mortgage-basis scenarios side by side. Open the file
+directly or serve the `calculator/` directory.
+
+Still to do: wire the summaries into Penlight as a metric source (like `chainshare`/`parkability`)
+— that needs a full live pull first.
 
 ## License
 
