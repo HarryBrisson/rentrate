@@ -56,12 +56,18 @@ owners) is a natural next layer. One signal, weight accordingly.
 
 ## Acknowledgments
 
-The core methodology — flagging a residential parcel as absentee/landlord-owned when its
-**taxpayer mailing address differs from the property address** — comes from **Sean MacMullan's**
-[nws-property-ownership-analysis](https://github.com/smacmullan/nws-property-ownership-analysis),
-which applied it to Chicago's Northwest Side. `rentrate` is a clean reimplementation that
-generalizes that idea to **every ward, community area, and zip** citywide and publishes the
-result as a Penlight metric source. Credit for the approach is entirely his; thanks, Sean.
+This metric stands on a lineage of Chicago civic-tech work, and credit belongs to that whole chain:
+
+- The core method — flagging a residential parcel as absentee/landlord-owned when its
+  **taxpayer mailing address differs from the property address** — comes from **Sean MacMullan's**
+  [nws-property-ownership-analysis](https://github.com/smacmullan/nws-property-ownership-analysis),
+  which applied it to Chicago's Northwest Side for housing-advocacy outreach.
+- Sean's work was in turn **inspired by the Landlord Mapper project** presented at Chi Hack Night,
+  which pioneered using Cook County property records to map landlord ownership.
+
+`rentrate` is a clean reimplementation that generalizes the method to **every ward, community
+area, and zip** citywide and publishes it as a Penlight metric source. The approach is theirs,
+not ours — thank you, Sean and the Landlord Mapper team.
 
 ## License
 
