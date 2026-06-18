@@ -1,0 +1,7 @@
+[
+  {"pin": "A", "prop_address_full": "123 N MAIN ST", "mail_address_full": "123 N MAIN ST"},
+  {"pin": "B", "prop_address_full": "125 N MAIN ST", "mail_address_full": "500 W LAKE ST"},
+  {"pin": "C", "prop_address_full": "1 S STATE ST", "mail_address_full": "1 s state st."},
+  {"pin": "D", "prop_address_full": "3 S STATE ST", "mail_address_full": "PO BOX 99"},
+  {"pin": "Z", "prop_address_full": "9 W FOO AVE", "mail_address_full": "9 W FOO AVE"}
+]
