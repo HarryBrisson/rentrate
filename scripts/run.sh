@@ -2,5 +2,5 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 python3 -m pytest -q
-python3 -m rentshare "$@"
+python3 -m rentrate "$@"
 echo; echo "Artifacts in data/processed/:"; ls -1 data/processed/

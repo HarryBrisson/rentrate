@@ -1,10 +1,10 @@
-"""CLI: python -m rentshare [--year 2023] [--max-rows N] [--geo-input f]"""
+"""CLI: python -m rentrate [--year 2023] [--max-rows N] [--geo-input f]"""
 from __future__ import annotations
 import argparse, json
 from .pipeline import DEFAULT_YEAR, PROCESSED, run
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="rentshare",
+    p = argparse.ArgumentParser(prog="rentrate",
         description="Absentee-owner (landlord) share of Chicago residential parcels by ward/community-area/zip.")
     p.add_argument("--year", type=int, default=DEFAULT_YEAR)
     p.add_argument("--max-rows", type=int, default=None,
