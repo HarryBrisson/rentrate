@@ -19,7 +19,7 @@ def test_absentee_classification_and_shares(tmp_path):
     assert result["metadata"]["totals"]["matched_parcels"] == 4
     # Same metric flows to community area + zip.
     assert {r["area_id"] for r in result["summaries"]["community_area"]} == {"22", "08"}
-    assert (tmp_path / "zip_landlord_summary.json").exists()
+    assert (tmp_path / "zip_rent_summary.json").exists()
 
 
 def test_address_normalization_ignores_case_and_punctuation():
