@@ -69,6 +69,32 @@ This metric stands on a lineage of Chicago civic-tech work, and credit belongs t
 area, and zip** citywide and publishes it as a Penlight metric source. The approach is theirs,
 not ours — thank you, Sean and the Landlord Mapper team.
 
+## Roadmap: rent-as-profit (Sean's Southside Together idea)
+
+A richer second metric Sean flagged — from a Southside Together tenant-organizing activity —
+estimates **how much of a tenant's rent is landlord profit**, vs. the landlord's property taxes
+and mortgage. Per building:
+
+```
+profit ≈ rent collected − property taxes − mortgage (debt service) − operating costs
+profit_share = profit ÷ rent collected
+```
+
+Inputs, by how solid they are:
+
+| Input | Source | Confidence |
+| --- | --- | --- |
+| Property tax billed / PIN | Cook County **Treasurer / Assessor** | ✅ actual, per-parcel |
+| Units in building | Assessor improvement characteristics (Sean's repo uses these) | ✅ good |
+| Rent / unit | ACS **B25064** median gross rent by area, bedroom-adjusted | ⚠️ area estimate, not lease data |
+| Mortgage (debt service) | last sale price (Cook County **sales**) × assumed LTV × mortgage constant | ⚠️ the big unknown — no public per-parcel mortgage |
+| Operating costs | rule-of-thumb (e.g. the real-estate "50% rule") | ⚠️ assumption |
+
+**Frame it honestly as an estimate / teaching tool**, exactly as the original organizing activity
+does — the mortgage and rent inputs are modeled, not observed. Aggregated to ward / community area
+/ zip it becomes "estimated landlord profit share," a strong advocacy signal but a low-confidence
+one (label accordingly). It also fits a standalone calculator site, which is how Sean imagined it.
+
 ## License
 
 Code: MIT. Derived data: based on Cook County Assessor open data. The methodology is credited
