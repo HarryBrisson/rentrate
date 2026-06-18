@@ -157,8 +157,8 @@ def run(*, year: int = DEFAULT_YEAR, max_rows: int | None = None,
     for geo_key in GEOGRAPHIES:
         rows = _rows(accum[geo_key], geo_key)
         summaries[geo_key] = rows
-        (output_dir / f"{geo_key}_landlord_summary.json").write_text(json.dumps(rows, indent=2))
-        with open(output_dir / f"{geo_key}_landlord_summary.csv", "w", newline="") as handle:
+        (output_dir / f"{geo_key}_rent_summary.json").write_text(json.dumps(rows, indent=2))
+        with open(output_dir / f"{geo_key}_rent_summary.csv", "w", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()) if rows else
                                     ["area_type", "area_id", "residential_parcels", "absentee_owned_parcels", METRIC])
             writer.writeheader()

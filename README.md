@@ -39,7 +39,7 @@ python -m pytest                              # offline fixtures
 ```
 
 No third-party dependencies (standard library only). Outputs to `data/processed/`:
-`{ward,community_area,zip}_landlord_summary.{json,csv}` + `metadata.json`.
+`{ward,community_area,zip}_rent_summary.{json,csv}` + `metadata.json`.
 
 > **Note on the live pull.** The Cook County Socrata API is slow for the full ~600k-parcel
 > join (a few minutes, occasionally timing out); the fetch retries with backoff and pages on
