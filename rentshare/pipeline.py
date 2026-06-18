@@ -55,7 +55,7 @@ def _soda(url: str, params: dict[str, Any], timeout: float = 300.0, attempts: in
     last: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:
-            request = urllib.request.Request(request_url, headers={"User-Agent": "landlordshare/0.1"})
+            request = urllib.request.Request(request_url, headers={"User-Agent": "rentshare/0.1"})
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except (urllib.error.URLError, TimeoutError, ValueError) as error:

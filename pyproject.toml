@@ -1,5 +1,5 @@
 [project]
-name = "landlordshare"
+name = "rentshare"
 version = "0.1.0"
 description = "Absentee-owner (landlord) share of Chicago residential parcels by ward/community-area/zip. A ward-wise-civic-tech direct-metric source."
 readme = "README.md"
@@ -9,6 +9,6 @@ dependencies = []
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 [tool.setuptools]
-packages = ["landlordshare"]
+packages = ["rentshare"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]

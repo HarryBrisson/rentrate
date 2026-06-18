@@ -1,4 +1,4 @@
-# landlordshare
+# rentshare
 
 **Absentee-owner (landlord) share of residential parcels, by Chicago ward / community area / zip.**
 
@@ -31,10 +31,10 @@ punctuation/whitespace) before comparison, so `1 S State St.` matches `1 S STATE
 ## Run it
 
 ```bash
-python -m landlordshare                       # full Chicago, default year 2023
-python -m landlordshare --year 2023           # pick the assessment year
-python -m landlordshare --max-rows 100000     # bounded quick run (partial)
-python -m landlordshare --geo-input g.json --address-input a.json   # fully offline
+python -m rentshare                       # full Chicago, default year 2023
+python -m rentshare --year 2023           # pick the assessment year
+python -m rentshare --max-rows 100000     # bounded quick run (partial)
+python -m rentshare --geo-input g.json --address-input a.json   # fully offline
 python -m pytest                              # offline fixtures
 ```
 
@@ -59,7 +59,7 @@ owners) is a natural next layer. One signal, weight accordingly.
 The core methodology — flagging a residential parcel as absentee/landlord-owned when its
 **taxpayer mailing address differs from the property address** — comes from **Sean MacMullan's**
 [nws-property-ownership-analysis](https://github.com/smacmullan/nws-property-ownership-analysis),
-which applied it to Chicago's Northwest Side. `landlordshare` is a clean reimplementation that
+which applied it to Chicago's Northwest Side. `rentshare` is a clean reimplementation that
 generalizes that idea to **every ward, community area, and zip** citywide and publishes the
 result as a Penlight metric source. Credit for the approach is entirely his; thanks, Sean.
 

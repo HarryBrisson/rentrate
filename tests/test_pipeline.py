@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from landlordshare.pipeline import run, normalize_address
+from rentshare.pipeline import run, normalize_address
 
 FIX = Path(__file__).resolve().parent.parent / "data" / "fixtures"
 
