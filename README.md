@@ -54,6 +54,16 @@ formatting yields some false absentees, and LLC/owner names can obscure true own
 richer "landlord concentration" angle (grouping absentee parcels by taxpayer name to find large
 owners) is a natural next layer. One signal, weight accordingly.
 
+## Acknowledgments
+
+The core methodology — flagging a residential parcel as absentee/landlord-owned when its
+**taxpayer mailing address differs from the property address** — comes from **Sean MacMullan's**
+[nws-property-ownership-analysis](https://github.com/smacmullan/nws-property-ownership-analysis),
+which applied it to Chicago's Northwest Side. `landlordshare` is a clean reimplementation that
+generalizes that idea to **every ward, community area, and zip** citywide and publishes the
+result as a Penlight metric source. Credit for the approach is entirely his; thanks, Sean.
+
 ## License
 
-Code: MIT. Derived data: based on Cook County Assessor open data.
+Code: MIT. Derived data: based on Cook County Assessor open data. The methodology is credited
+above; this repository does not reuse the original project's code.
