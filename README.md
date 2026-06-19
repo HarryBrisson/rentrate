@@ -130,6 +130,34 @@ directly or serve the `calculator/` directory.
 Still to do: wire the summaries into Penlight as a metric source (like `chainshare`/`parkability`)
 — that needs a full live pull first.
 
+## Bring your own polygons
+
+The headline pipeline joins parcels to ward / community area / zip on the dataset's built-in geography
+columns, but the Assessor Parcel Universe also carries a `lat`/`lon` per parcel — so the absentee share
+can be computed for **any** polygons. Fetch each residential parcel as a point with its absentee flag,
+then point-in-polygon them into a caller's cells:
+
+```python
+import json
+from rentrate.aggregation import aggregate_to_polygons, fetch_parcel_points
+
+parcels = fetch_parcel_points()                 # or read a published residential_parcels.geojson
+cells = json.load(open("my_polygons.geojson"))  # any FeatureCollection
+values = aggregate_to_polygons(cells, id_field="cell_id", parcel_points=parcels)
+# {cell_id: {"absentee_owner_share_pct": ..., "residential_parcels": ..., "absentee_owned_parcels": ...}}
+```
+
+```bash
+python -m rentrate.aggregation --publish-layers data/layers       # fetch parcels -> point layer + spec
+python -m rentrate.aggregation --polygons my_polygons.geojson --id-field cell_id \
+    --parcel-layer data/layers/residential_parcels.geojson
+```
+
+`absentee_owner_share_pct` is the one BYOP metric (combine = `absentee ÷ residential` share);
+`--publish-layers` writes the parcel-point GeoJSON + `aggregation.AGGREGATION_SPEC` so a non-Python
+consumer can do the same point-in-polygon. The point-in-polygon is plain standard library (ray casting),
+original to this repo.
+
 ## License
 
 Code: MIT. Derived data: based on Cook County Assessor open data. The methodology is credited
