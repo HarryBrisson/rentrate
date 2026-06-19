@@ -55,6 +55,7 @@ def test_parcel_layer_round_trips(tmp_path):
 
 
 def test_spec_declares_share_metric_byop():
-    assert set(AGGREGATION_SPEC["byop_metrics"]) == {"absentee_owner_share_pct"}
-    assert AGGREGATION_SPEC["byop_metrics"]["absentee_owner_share_pct"]["combine"] == "share"
+    assert AGGREGATION_SPEC["contract"] == "byop/v1"
+    assert set(AGGREGATION_SPEC["metrics"]) == {"absentee_owner_share_pct"}
+    assert AGGREGATION_SPEC["metrics"]["absentee_owner_share_pct"]["combine"] == "share"
     assert AGGREGATION_SPEC["fixed_geography_metrics"] == {}

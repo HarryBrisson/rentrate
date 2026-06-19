@@ -27,24 +27,27 @@ from .pipeline import (
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 AGGREGATION_SPEC: dict[str, Any] = {
+    "contract": "byop/v1",
     "source": "rentrate",
     "source_url": "https://github.com/HarryBrisson/rentrate",
-    "byop_metrics": {
+    "layers": {
+        "residential_parcels": {
+            "file": "residential_parcels.geojson",
+            "kind": "points",
+            "value": "one point per Chicago residential parcel; properties.absentee = taxpayer mailing "
+                     "address != property address (a rental proxy)",
+        },
+    },
+    "metrics": {
         "absentee_owner_share_pct": {
-            "unit": "percent",
-            "combine": "share",
-            "numerator": "absentee_owned_parcels",
-            "denominator": "residential_parcels",
             "layer": "residential_parcels",
+            "combine": "share",
+            "flag": "absentee",  # fraction of parcels whose `absentee` property is truthy
+            "scale": 100,
+            "unit": "percent",
         },
     },
     "fixed_geography_metrics": {},
-    "fine_layer": {
-        "type": "geojson_points",
-        "file": "residential_parcels.geojson",
-        "value": "one point per Chicago residential parcel; properties.absentee = taxpayer mailing "
-                 "address != property address (a rental proxy)",
-    },
 }
 
 
