@@ -42,6 +42,7 @@ from typing import Any
 from .pipeline import (
     GEOGRAPHIES,
     PARCEL_ADDRESSES,
+    PARCEL_UNIVERSE,
     PROCESSED,
     _paginate,
     _soda,
@@ -69,10 +70,10 @@ def _to_float(value: Any) -> float | None:
         return None
 
 
-def fetch_assessed_values(year: int, *, max_rows: int | None = None) -> dict[str, float]:
+def fetch_assessed_values(year: int, *, max_rows: int | None = None, extra_where: str = "") -> dict[str, float]:
     """{pin: assessed_value} for residential (class 2xx) parcels — prefers certified, then board,
     then mailed total assessed value."""
-    where = f"year={year} AND starts_with(class,'2')"
+    where = f"year={year} AND starts_with(class,'2'){extra_where}"
     out: dict[str, float] = {}
     for row in _paginate(ASSESSED_VALUES, select="pin,certified_tot,board_tot,mailed_tot",
                           where=where, max_rows=max_rows):
@@ -83,10 +84,10 @@ def fetch_assessed_values(year: int, *, max_rows: int | None = None) -> dict[str
     return out
 
 
-def fetch_units(year: int, *, max_rows: int | None = None) -> dict[str, int]:
+def fetch_units(year: int, *, max_rows: int | None = None, extra_where: str = "") -> dict[str, int]:
     """{pin: units} from residential characteristics (total_units, else apts; default 1)."""
     out: dict[str, int] = {}
-    for row in _paginate(CHARACTERISTICS, select="pin,total_units,apts", where=f"tax_year={year}",
+    for row in _paginate(CHARACTERISTICS, select="pin,total_units,apts", where=f"tax_year={year}{extra_where}",
                          max_rows=max_rows):
         pin = row.get("pin")
         if not pin:
@@ -96,12 +97,13 @@ def fetch_units(year: int, *, max_rows: int | None = None) -> dict[str, int]:
     return out
 
 
-def fetch_last_sale(*, max_rows: int | None = None) -> dict[str, float]:
+def fetch_last_sale(*, max_rows: int | None = None, extra_where: str = "") -> dict[str, float]:
     """{pin: last arm's-length sale price}. Keeps the most recent qualifying sale per PIN,
     excluding sub-$10k, multi-parcel, and same-sale-within-365-day rows (Cook County's own
     arm's-length filter flags)."""
     where = ("sale_price > 10000 AND is_multisale='false' "
-             "AND sale_filter_less_than_10k='false' AND sale_filter_same_sale_within_365='false'")
+             "AND sale_filter_less_than_10k='false' AND sale_filter_same_sale_within_365='false'"
+             f"{extra_where}")
     latest: dict[str, tuple[str, float]] = {}
     for row in _paginate(PARCEL_SALES, select="pin,sale_price,sale_date", where=where, max_rows=max_rows):
         pin = row.get("pin")
@@ -116,7 +118,8 @@ def fetch_last_sale(*, max_rows: int | None = None) -> dict[str, float]:
 
 def fetch_zcta_rent(acs_year: int, *, api_key: str | None = None) -> dict[str, float]:
     """{zip: median gross rent} from ACS 5-year B25064 by ZCTA (the parcel's zip joins directly).
-    No key needed for this volume; pass one to be safe under heavy use."""
+    A Census API key is required — the nationwide ZCTA query 302-redirects to a missing-key page
+    without one (set CENSUS_API_KEY or pass --census-api-key)."""
     params = {"get": "B25064_001E", "for": "zip code tabulation area:*"}
     if api_key:
         params["key"] = api_key
@@ -133,10 +136,10 @@ def fetch_zcta_rent(acs_year: int, *, api_key: str | None = None) -> dict[str, f
 
 
 def absentee_pins(year: int, geo: dict[str, dict[str, str]], *, max_rows: int | None = None,
-                  address_rows: list[dict[str, Any]] | None = None) -> set[str]:
+                  address_rows: list[dict[str, Any]] | None = None, extra_where: str = "") -> set[str]:
     """The set of residential PINs whose taxpayer mailing address differs from the property
     address — i.e. rentals — restricted to PINs we have geo for."""
-    where = f"year={year} AND mail_address_full IS NOT NULL AND prop_address_full IS NOT NULL"
+    where = f"year={year} AND mail_address_full IS NOT NULL AND prop_address_full IS NOT NULL{extra_where}"
     rows = address_rows if address_rows is not None else _paginate(
         PARCEL_ADDRESSES, select="pin,prop_address_full,mail_address_full", where=where, max_rows=max_rows)
     out: set[str] = set()
@@ -206,6 +209,87 @@ def _rows(accum: dict[str, dict[str, float]], geo_key: str) -> list[dict[str, An
             "estimated_profit_total_actual": round(b["profit_actual"], 2),
         })
     return rows
+
+
+def fetch_profit_parcel_points(
+    year: int = DEFAULT_YEAR,
+    acs_year: int = DEFAULT_ACS_YEAR,
+    *,
+    max_rows: int | None = None,
+    census_api_key: str | None = None,
+    assumptions: ProfitAssumptions | None = None,
+    cache_dir: str | Path | None = None,
+    sample_endings: tuple[str, ...] | None = None,
+) -> list[dict[str, Any]]:
+    """One point per rental (absentee) parcel carrying the modeled dollars — ``annual_rent`` and the two
+    profit scenarios (``profit_today`` = assessed-value basis, ``profit_actual`` = last-sale basis). A
+    consumer rolls Σprofit/Σrent up to any polygons to get the landlord-profit share of rent.
+
+    ``sample_endings`` keeps only parcels whose PIN ends in one of those strings — a consistent
+    pseudo-random subset applied to every Cook County dataset (so they stay joinable), e.g. a few
+    2-digit endings ≈ that many percent of parcels. Pulling all ~1.5M parcels every refresh is slow, so a
+    random ~few-percent sample gives a good per-area estimate cheaply. ``cache_dir`` persists each pull to
+    reuse on re-run."""
+    cache = Path(cache_dir) if cache_dir else None
+    if cache:
+        cache.mkdir(parents=True, exist_ok=True)
+
+    sample_where = ""
+    if sample_endings:
+        sample_where = " AND (" + " OR ".join(f"pin LIKE '%{e}'" for e in sample_endings) + ")"
+
+    def cached(name: str, fetch):
+        if cache and (path := cache / f"{name}.json").exists():
+            return json.loads(path.read_text())
+        value = fetch()
+        if cache:
+            (cache / f"{name}.json").write_text(json.dumps(value))
+        return value
+
+    geo = cached("geo", lambda: fetch_residential_geo(year, max_rows=max_rows, extra_where=sample_where))
+    pins = set(cached("absentee_pins",
+                      lambda: sorted(absentee_pins(year, geo, max_rows=max_rows, extra_where=sample_where))))
+    assessed = cached("assessed", lambda: fetch_assessed_values(year, max_rows=max_rows, extra_where=sample_where))
+    units = cached("units", lambda: fetch_units(year, max_rows=max_rows, extra_where=sample_where))
+    sales = cached("sales", lambda: fetch_last_sale(max_rows=max_rows, extra_where=sample_where))
+    rent_by_zip = cached("rent", lambda: fetch_zcta_rent(acs_year, api_key=census_api_key))
+
+    def _fetch_coords():
+        out: dict[str, tuple[float, float]] = {}
+        for row in _paginate(
+            PARCEL_UNIVERSE,
+            select="pin,lat,lon",
+            where=f"year={year} AND starts_with(class,'2') AND lat IS NOT NULL AND lon IS NOT NULL{sample_where}",
+            max_rows=max_rows,
+        ):
+            pin = row.get("pin")
+            if pin in pins and row.get("lat") not in (None, "") and row.get("lon") not in (None, ""):
+                out[pin] = (float(row["lat"]), float(row["lon"]))
+        return out
+
+    coords = {pin: tuple(latlon) for pin, latlon in cached("coords", _fetch_coords).items()}
+
+    points: list[dict[str, Any]] = []
+    for pin in pins:
+        loc = geo.get(pin)
+        av = assessed.get(pin)
+        coord = coords.get(pin)
+        zip_code = loc.get("zip") if loc else None
+        rent = rent_by_zip.get(zip_code) if zip_code else None
+        if not (loc and av and rent and coord):
+            continue  # need geo + assessed value + a rent for the zip + a coordinate
+        n_units = units.get(pin, 1)
+        today = estimate_building(monthly_rent_per_unit=rent, units=n_units, assessed_value=av,
+                                  sale_price=None, assumptions=assumptions)
+        actual = estimate_building(monthly_rent_per_unit=rent, units=n_units, assessed_value=av,
+                                   sale_price=sales.get(pin), assumptions=assumptions)
+        points.append({
+            "lat": coord[0], "lon": coord[1],
+            "annual_rent": today["annual_rent"],
+            "profit_today": today["profit"],
+            "profit_actual": actual["profit"],
+        })
+    return points
 
 
 def run(

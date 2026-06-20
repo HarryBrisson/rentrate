@@ -79,9 +79,9 @@ def _paginate(url: str, *, select: str, where: str, max_rows: int | None):
             return
 
 
-def fetch_residential_geo(year: int, *, max_rows: int | None = None) -> dict[str, dict[str, str]]:
+def fetch_residential_geo(year: int, *, max_rows: int | None = None, extra_where: str = "") -> dict[str, dict[str, str]]:
     """{pin: {ward, community_area, zip}} for Chicago residential (class 2xx) parcels."""
-    where = f"year={year} AND ward_num IS NOT NULL AND starts_with(class,'2')"
+    where = f"year={year} AND ward_num IS NOT NULL AND starts_with(class,'2'){extra_where}"
     geo: dict[str, dict[str, str]] = {}
     for row in _paginate(PARCEL_UNIVERSE, select="pin,ward_num,chicago_community_area_num,zip_code",
                           where=where, max_rows=max_rows):

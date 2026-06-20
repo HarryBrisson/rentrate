@@ -26,6 +26,10 @@ from .pipeline import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+# Default PIN-ending sample for the profit layer (~12% of parcels): a consistent pseudo-random subset
+# applied to every Cook County dataset, so the heavy join stays fast while still covering every area.
+DEFAULT_PROFIT_SAMPLE_ENDINGS = ("03", "11", "27", "38", "44", "59", "66", "72", "85", "91", "08", "49")
+
 AGGREGATION_SPEC: dict[str, Any] = {
     "contract": "byop/v1",
     "source": "rentrate",
@@ -37,12 +41,34 @@ AGGREGATION_SPEC: dict[str, Any] = {
             "value": "one point per Chicago residential parcel; properties.absentee = taxpayer mailing "
                      "address != property address (a rental proxy)",
         },
+        "rental_profit_parcels": {
+            "file": "rental_profit_parcels.geojson",
+            "kind": "points",
+            "value": "one point per rental (absentee) parcel; properties: annual_rent, profit_today "
+                     "(assessed-value mortgage basis), profit_actual (last-sale mortgage basis)",
+        },
     },
     "metrics": {
         "absentee_owner_share_pct": {
             "layer": "residential_parcels",
             "combine": "share",
             "flag": "absentee",  # fraction of parcels whose `absentee` property is truthy
+            "scale": 100,
+            "unit": "percent",
+        },
+        "landlord_profit_share_pct": {
+            "layer": "rental_profit_parcels",
+            "combine": "ratio",  # Σ profit_today / Σ annual_rent over the rental parcels in the polygon
+            "numerator": "profit_today",
+            "denominator": "annual_rent",
+            "scale": 100,
+            "unit": "percent",
+        },
+        "landlord_profit_share_actual_pct": {
+            "layer": "rental_profit_parcels",
+            "combine": "ratio",
+            "numerator": "profit_actual",
+            "denominator": "annual_rent",
             "scale": 100,
             "unit": "percent",
         },
@@ -213,6 +239,24 @@ def write_parcel_layer(output_dir: Path, parcel_points: Iterable[dict[str, Any]]
     return len(features)
 
 
+def write_profit_layer(output_dir: Path, profit_points: Iterable[dict[str, Any]]) -> int:
+    """Publish the rental-profit fine layer: one point per rental parcel with the modeled annual rent +
+    profit dollars (both mortgage bases). The spec is written by :func:`write_parcel_layer`."""
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    features = [
+        {"type": "Feature", "geometry": {"type": "Point", "coordinates": [p["lon"], p["lat"]]},
+         "properties": {"annual_rent": p["annual_rent"], "profit_today": p["profit_today"],
+                        "profit_actual": p["profit_actual"]}}
+        for p in profit_points
+        if p.get("lat") is not None and p.get("lon") is not None
+    ]
+    (output_dir / "rental_profit_parcels.geojson").write_text(
+        json.dumps({"type": "FeatureCollection", "features": features})
+    )
+    return len(features)
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
 
@@ -224,11 +268,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--publish-layers", type=Path, help="fetch parcels and write the point layer + spec here")
     parser.add_argument("--year", type=int, default=DEFAULT_YEAR)
     parser.add_argument("--max-rows", type=int, default=None, help="cap rows fetched (for a quick sample)")
+    parser.add_argument("--census-api-key", default=None,
+                        help="Census API key for the ACS rent join (else CENSUS_API_KEY env); required for the profit layer")
+    parser.add_argument("--full-profit", action="store_true",
+                        help="build the profit layer from ALL ~1.5M parcels instead of the default PIN-ending sample")
     args = parser.parse_args(argv)
 
     if args.publish_layers:
+        import os
+
+        from .profit_pipeline import fetch_profit_parcel_points
+
+        census_key = args.census_api_key or os.environ.get("CENSUS_API_KEY")
+        # The profit layer joins several 1.5M-row Cook County datasets, so by default we build it from a
+        # consistent PIN-ending sample (~12% -> ~80 rental parcels per χGRID cell, ~450 per ward) — a good
+        # per-area estimate that stays fast. --full-profit pulls every parcel.
+        endings = None if args.full_profit else DEFAULT_PROFIT_SAMPLE_ENDINGS
         count = write_parcel_layer(args.publish_layers, fetch_parcel_points(args.year, max_rows=args.max_rows))
-        print(f"wrote {count} parcel points + spec to {args.publish_layers}")
+        profit = write_profit_layer(args.publish_layers, fetch_profit_parcel_points(
+            args.year, max_rows=args.max_rows, census_api_key=census_key, sample_endings=endings))
+        print(f"wrote {count} residential + {profit} rental-profit parcels + spec to {args.publish_layers}")
         return 0
     if not args.polygons:
         parser.error("pass --polygons (to aggregate) or --publish-layers (to export the parcel layer)")

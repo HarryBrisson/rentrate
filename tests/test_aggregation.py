@@ -54,8 +54,14 @@ def test_parcel_layer_round_trips(tmp_path):
     assert (tmp_path / "aggregation_spec.json").exists()
 
 
-def test_spec_declares_share_metric_byop():
+def test_spec_declares_byop_metrics():
     assert AGGREGATION_SPEC["contract"] == "byop/v1"
-    assert set(AGGREGATION_SPEC["metrics"]) == {"absentee_owner_share_pct"}
+    assert set(AGGREGATION_SPEC["metrics"]) == {
+        "absentee_owner_share_pct",
+        "landlord_profit_share_pct",
+        "landlord_profit_share_actual_pct",
+    }
     assert AGGREGATION_SPEC["metrics"]["absentee_owner_share_pct"]["combine"] == "share"
+    assert AGGREGATION_SPEC["metrics"]["landlord_profit_share_pct"]["combine"] == "ratio"
+    assert AGGREGATION_SPEC["metrics"]["landlord_profit_share_pct"]["scale"] == 100
     assert AGGREGATION_SPEC["fixed_geography_metrics"] == {}
