@@ -84,15 +84,23 @@ def fetch_assessed_values(year: int, *, max_rows: int | None = None, extra_where
     return out
 
 
-def fetch_units(year: int, *, max_rows: int | None = None, extra_where: str = "") -> dict[str, int]:
-    """{pin: units} from residential characteristics (total_units, else apts; default 1)."""
+CHARACTERISTICS_YEAR = 2019  # the characteristics dataset is frozen at 2019, not the assessment year
+
+
+def fetch_units(year: int, *, max_rows: int | None = None, extra_where: str = "",
+                char_year: int = CHARACTERISTICS_YEAR) -> dict[str, int]:
+    """{pin: dwelling units} from residential characteristics. ``apts`` is the apartment count for
+    multi-unit classes (2-flats, 3-6 apartment buildings, …); single-family rows carry apts=0 and are
+    one unit. ``total_units`` is always 1 here, so we read apts first. The dataset stops at tax_year
+    2019, so we query that rather than the (later) assessment year."""
     out: dict[str, int] = {}
-    for row in _paginate(CHARACTERISTICS, select="pin,total_units,apts", where=f"tax_year={year}{extra_where}",
+    for row in _paginate(CHARACTERISTICS, select="pin,total_units,apts", where=f"tax_year={char_year}{extra_where}",
                          max_rows=max_rows):
         pin = row.get("pin")
         if not pin:
             continue
-        units = _to_float(row.get("total_units")) or _to_float(row.get("apts")) or 1
+        apts = _to_float(row.get("apts"))
+        units = apts if (apts and apts > 0) else (_to_float(row.get("total_units")) or 1)
         out[pin] = max(1, int(units))
     return out
 
@@ -219,24 +227,25 @@ def fetch_profit_parcel_points(
     census_api_key: str | None = None,
     assumptions: ProfitAssumptions | None = None,
     cache_dir: str | Path | None = None,
-    sample_endings: tuple[str, ...] | None = None,
+    sample_parcel_digits: tuple[str, ...] | None = None,
 ) -> list[dict[str, Any]]:
     """One point per rental (absentee) parcel carrying the modeled dollars — ``annual_rent`` and the two
     profit scenarios (``profit_today`` = assessed-value basis, ``profit_actual`` = last-sale basis). A
     consumer rolls Σprofit/Σrent up to any polygons to get the landlord-profit share of rent.
 
-    ``sample_endings`` keeps only parcels whose PIN ends in one of those strings — a consistent
-    pseudo-random subset applied to every Cook County dataset (so they stay joinable), e.g. a few
-    2-digit endings ≈ that many percent of parcels. Pulling all ~1.5M parcels every refresh is slow, so a
-    random ~few-percent sample gives a good per-area estimate cheaply. ``cache_dir`` persists each pull to
-    reuse on re-run."""
+    ``sample_parcel_digits`` keeps only parcels whose PIN parcel digit (position 10) is one of those —
+    a consistent ~10%-per-digit subset applied to every Cook County dataset (so they stay joinable), and
+    representative of all parcel types (single-family, 2-flats, condos), unlike a PIN *suffix* which only
+    matches condos/sub-parcels. Pulling all ~1.5M parcels every refresh is slow, so a random sample gives
+    a good per-area estimate cheaply. ``cache_dir`` persists each pull to reuse on re-run."""
     cache = Path(cache_dir) if cache_dir else None
     if cache:
         cache.mkdir(parents=True, exist_ok=True)
 
     sample_where = ""
-    if sample_endings:
-        sample_where = " AND (" + " OR ".join(f"pin LIKE '%{e}'" for e in sample_endings) + ")"
+    if sample_parcel_digits:
+        digits = ", ".join(f"'{d}'" for d in sample_parcel_digits)
+        sample_where = f" AND substring(pin, 10, 1) in ({digits})"
 
     def cached(name: str, fetch):
         if cache and (path := cache / f"{name}.json").exists():

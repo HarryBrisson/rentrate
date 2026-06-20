@@ -26,9 +26,10 @@ from .pipeline import (
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Default PIN-ending sample for the profit layer (~12% of parcels): a consistent pseudo-random subset
-# applied to every Cook County dataset, so the heavy join stays fast while still covering every area.
-DEFAULT_PROFIT_SAMPLE_ENDINGS = ("03", "11", "27", "38", "44", "59", "66", "72", "85", "91", "08", "49")
+# Default sample for the profit layer: parcels whose PIN parcel digit (position 10) is one of these
+# (~10% each), applied consistently to every Cook County dataset. Sampling the PARCEL digit keeps the
+# mix representative (single-family, 2-flats, condos); a PIN *suffix* would hit only condos/sub-parcels.
+DEFAULT_PROFIT_SAMPLE_DIGITS = ("3", "7")  # ~20% of parcels -> hundreds of rental parcels per area
 
 AGGREGATION_SPEC: dict[str, Any] = {
     "contract": "byop/v1",
@@ -271,7 +272,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--census-api-key", default=None,
                         help="Census API key for the ACS rent join (else CENSUS_API_KEY env); required for the profit layer")
     parser.add_argument("--full-profit", action="store_true",
-                        help="build the profit layer from ALL ~1.5M parcels instead of the default PIN-ending sample")
+                        help="build the profit layer from ALL ~1.5M parcels instead of the default parcel-digit sample")
     args = parser.parse_args(argv)
 
     if args.publish_layers:
@@ -281,12 +282,12 @@ def main(argv: list[str] | None = None) -> int:
 
         census_key = args.census_api_key or os.environ.get("CENSUS_API_KEY")
         # The profit layer joins several 1.5M-row Cook County datasets, so by default we build it from a
-        # consistent PIN-ending sample (~12% -> ~80 rental parcels per χGRID cell, ~450 per ward) — a good
+        # representative parcel-digit sample (~20% -> hundreds of rental parcels per area) — a good
         # per-area estimate that stays fast. --full-profit pulls every parcel.
-        endings = None if args.full_profit else DEFAULT_PROFIT_SAMPLE_ENDINGS
+        digits = None if args.full_profit else DEFAULT_PROFIT_SAMPLE_DIGITS
         count = write_parcel_layer(args.publish_layers, fetch_parcel_points(args.year, max_rows=args.max_rows))
         profit = write_profit_layer(args.publish_layers, fetch_profit_parcel_points(
-            args.year, max_rows=args.max_rows, census_api_key=census_key, sample_endings=endings))
+            args.year, max_rows=args.max_rows, census_api_key=census_key, sample_parcel_digits=digits))
         print(f"wrote {count} residential + {profit} rental-profit parcels + spec to {args.publish_layers}")
         return 0
     if not args.polygons:
